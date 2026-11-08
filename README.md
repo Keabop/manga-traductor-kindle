@@ -69,6 +69,16 @@ sesión con `/login`.
 
    Si se interrumpe, vuelve a lanzar el mismo comando: continúa donde se quedó.
 
+4. **Varios tomos de una vez**, desatendido:
+
+   ```
+   .venv\Scripts\python todos.py "C:\ruta\carpeta con los EPUB" --glosario glosarios\mi-manga.md
+   ```
+
+   Procesa los tomos en orden y deja todo en `salida\` (registro en `salida\progreso.log`).
+   Si se acaba la cuota de Claude, espera sola a que se renueve y sigue; la PC no se
+   suspende mientras corre (deja la tapa abierta si es laptop).
+
 ## Qué modelo usar para traducir
 
 **Recomendado: Claude Opus** (es el valor por defecto). Se comparó con Claude Sonnet sobre
