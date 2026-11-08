@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Revisión de traducción</title>
+<style>
+@font-face {
+  font-family: "Archivo Narrow";
+  src: url("/fuente") format("truetype");
+  font-weight: 400 700;
+  font-display: swap;
+}
+:root {
+  --fondo: oklch(0.17 0.008 260);
+  --panel: oklch(0.21 0.009 260);
+  --panel-alto: oklch(0.25 0.01 260);
+  --linea: oklch(0.31 0.01 260);
+  --texto: oklch(0.94 0.008 260);
+  --tenue: oklch(0.74 0.012 260);
+  --rojo: oklch(0.68 0.19 27);
+  --rojo-hondo: oklch(0.42 0.13 27);
+  --verde: oklch(0.78 0.13 150);
+  --radio: 6px;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--fondo);
+  color: var(--texto);
+  font: 15px/1.45 "Archivo Narrow", sans-serif;
+  font-variant-numeric: tabular-nums;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  overflow: hidden;
+}
+::selection { background: var(--rojo-hondo); color: var(--texto); }
+* { scrollbar-width: thin; scrollbar-color: var(--linea) transparent; }
+:focus-visible { outline: 2px solid var(--rojo); outline-offset: 2px; }
+button, select, textarea, input { font: inherit; color: inherit; }
+
+/* barra superior */
+header {
+  display: flex; align-items: center; gap: 20px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--linea);
+  background: var(--panel);
+}
+header h1 { font-size: 17px; font-weight: 700; margin: 0; letter-spacing: 0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#resumen { color: var(--tenue); white-space: nowrap; }
+.espacio { flex: 1; }
+.interruptor { display: inline-flex; align-items: center; gap: 8px; color: var(--tenue); cursor: pointer; user-select: none; white-space: nowrap; }
+.interruptor input { accent-color: var(--rojo); width: 16px; height: 16px; margin: 0; }
+.boton {
+  border: 1px solid var(--linea); background: var(--panel-alto);
+  padding: 7px 14px; border-radius: var(--radio); cursor: pointer; white-space: nowrap;
+  transition: background-color 120ms ease-out, border-color 120ms ease-out;
+}
+.boton:hover:not(:disabled) { border-color: var(--tenue); }
+.boton:disabled { opacity: 0.55; cursor: progress; }
+.boton.principal { background: var(--rojo); border-color: var(--rojo); color: oklch(0.15 0.02 27); font-weight: 700; }
+.boton.principal:hover:not(:disabled) { background: oklch(0.73 0.19 27); border-color: oklch(0.73 0.19 27); }
+
+main { display: grid; grid-template-columns: 132px minmax(0, 1fr) 380px; min-height: 0; }
+
+/* lista de páginas */
+#paginas { overflow-y: auto; border-right: 1px solid var(--linea); padding: 6px 0; }
+#paginas button {
+  display: flex; width: 100%; align-items: center; gap: 8px;
+  padding: 5px 14px; border: 0; background: none; text-align: left; cursor: pointer;
+  color: var(--tenue);
+}
+#paginas button:hover { background: var(--panel); color: var(--texto); }
+#paginas button[aria-current="true"] { background: var(--panel-alto); color: var(--texto); box-shadow: inset 2px 0 var(--rojo); }
+#paginas .num { width: 34px; }
+#paginas .marca { margin-left: auto; font-size: 13px; min-width: 22px; text-align: center; border-radius: 10px; padding: 0 6px; }
+#paginas .marca.avisos { background: var(--rojo-hondo); color: var(--texto); }
+#paginas .marca.lista { color: var(--verde); }
+#paginas .sin { opacity: 0.45; }
+
+/* vista de la página */
+#vista { min-width: 0; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; padding: 14px 14px 18px; }
+.lado { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 6px; }
+.lado h2 { margin: 0; font-size: 13px; font-weight: 600; color: var(--tenue); text-transform: uppercase; letter-spacing: 0.06em; }
+.marco { position: relative; min-height: 0; min-width: 0; container-type: size; display: flex; justify-content: center; }
+/* la página entra entera en su marco, sea el límite el ancho o el alto */
+.lienzo { position: relative; width: min(100cqw, calc(100cqh * var(--r, 0.7))); aspect-ratio: var(--ar); align-self: flex-start; }
+.lienzo img { width: 100%; height: 100%; display: block; border-radius: 2px; box-shadow: 0 6px 24px oklch(0 0 0 / 0.45); transition: opacity 160ms ease-out, filter 160ms ease-out; }
+.ocupado .lienzo img { opacity: 0.45; filter: blur(1.5px); }
+.caja {
+  position: absolute; border: 1.5px solid oklch(0.68 0.19 27 / 0.55); border-radius: 3px;
+  background: none; padding: 0; cursor: pointer;
+}
+.caja span {
+  position: absolute; top: -1px; left: -1px; transform: translateY(-100%);
+  background: var(--rojo); color: oklch(0.15 0.02 27); font-size: 11px; font-weight: 700; padding: 0 4px; border-radius: 2px 2px 0 0;
+}
+.caja.aviso { border-color: var(--rojo); border-width: 2px; }
+.caja.omitida { border-style: dashed; border-color: oklch(0.74 0.012 260 / 0.7); }
+.caja.omitida span { background: var(--tenue); }
+.caja[aria-pressed="true"] { border-width: 3px; border-color: var(--rojo); box-shadow: 0 0 0 3px oklch(0.15 0.01 260 / 0.75), 0 4px 14px oklch(0 0 0 / 0.4); z-index: 1; }
+/* en la traducida solo se ve el bloque elegido, para no tapar el resultado */
+#lienzo-es .caja:not([aria-pressed="true"]) { border-color: transparent; }
+#lienzo-es .caja:not([aria-pressed="true"]):hover { border-color: oklch(0.68 0.19 27 / 0.55); }
+
+/* bloques */
+aside { border-left: 1px solid var(--linea); background: var(--panel); display: grid; grid-template-rows: 1fr auto; min-height: 0; }
+#bloques { overflow-y: auto; padding: 12px 14px; }
+.vacio { color: var(--tenue); padding: 24px 4px; }
+.bloque { border: 1px solid var(--linea); border-radius: var(--radio); padding: 10px 12px; margin-bottom: 10px; background: var(--fondo); }
+.bloque.activo { border-color: var(--tenue); }
+.bloque.cambiado .titulo strong::after { content: " · sin guardar"; color: var(--rojo); font-weight: 400; }
+.titulo { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; cursor: pointer; }
+.titulo strong { font-size: 15px; }
+.etiqueta { font-size: 12px; border: 1px solid var(--linea); border-radius: 10px; padding: 0 7px; color: var(--tenue); }
+.etiqueta.fuerte { border-color: var(--rojo); color: var(--rojo); }
+.ingles { color: var(--tenue); font-size: 13px; margin: 0 0 6px; }
+textarea {
+  width: 100%; min-height: 54px; resize: vertical; padding: 6px 8px;
+  background: var(--panel-alto); border: 1px solid var(--linea); border-radius: 4px; line-height: 1.35;
+}
+textarea:disabled { opacity: 0.5; }
+.controles { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; margin-top: 8px; font-size: 13px; color: var(--tenue); }
+select { background: var(--panel-alto); border: 1px solid var(--linea); border-radius: 4px; padding: 3px 6px; }
+.escala { display: flex; align-items: center; gap: 8px; }
+.escala input { flex: 1; accent-color: var(--rojo); }
+.escala output { min-width: 40px; text-align: right; color: var(--texto); }
+.pie { border-top: 1px solid var(--linea); padding: 12px 14px; display: grid; gap: 10px; }
+.pie .fila { display: flex; align-items: center; gap: 10px; }
+.pie .boton.principal { flex: 1; }
+#estado { font-size: 13px; color: var(--tenue); min-height: 1.4em; }
+#estado.error { color: var(--rojo); }
+.atajo { color: var(--tenue); font-size: 12px; }
+kbd { font: inherit; border: 1px solid var(--linea); border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="titulo">Revisión</h1>
+  <span id="resumen"></span>
+  <span class="espacio"></span>
+  <label class="interruptor"><input type="checkbox" id="solo-avisos" checked> Solo páginas con avisos</label>
+  <button class="boton" id="armar">Armar EPUB</button>
+</header>
+<main>
+  <nav id="paginas" aria-label="Páginas"></nav>
+  <section id="vista">
+    <div class="lado"><h2>Original</h2><div class="marco"><div class="lienzo" id="lienzo-orig"></div></div></div>
+    <div class="lado"><h2>Traducida</h2><div class="marco"><div class="lienzo" id="lienzo-es"></div></div></div>
+  </section>
+  <aside>
+    <div id="bloques"></div>
+    <div class="pie">
+      <label class="interruptor"><input type="checkbox" id="revisada"> Página revisada</label>
+      <div class="fila">
+        <button class="boton principal" id="guardar">Guardar y recomponer</button>
+      </div>
+      <div id="estado" role="status"></div>
+      <div class="atajo"><kbd>Ctrl</kbd>+<kbd>Enter</kbd> guardar · <kbd>Alt</kbd>+<kbd>↓</kbd>/<kbd>↑</kbd> página siguiente/anterior</div>
+    </div>
+  </aside>
+</main>
+<script>
+const NOMBRES = { chico: "letra chica", "mínimo": "letra mínima", eco: "eco (se deja como arte)", vertical: "vertical" };
+const ESTILOS = [["normal", "Diálogo"], ["grito", "Grito"], ["cursiva", "Cursiva"], ["manuscrito", "Manuscrito"], ["rotulo", "Cartel"]];
+let libro = null, pagina = null, actual = null, activo = null, cambios = {}, version = Date.now();
+const $ = (s) => document.querySelector(s);
+
+async function api(ruta, cuerpo) {
+  const r = await fetch(ruta, cuerpo ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(cuerpo) } : {});
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error || r.statusText);
+  return d;
+}
+function estado(txt, error = false) { const e = $("#estado"); e.textContent = txt; e.classList.toggle("error", error); }
+
+async function cargarLibro() {
+  libro = await api("/api/libro");
+  $("#titulo").textContent = libro.titulo;
+  document.title = "Revisión · " + libro.titulo;
+  pintarLista();
+}
+function visibles() {
+  const solo = $("#solo-avisos").checked;
+  return libro.paginas.filter((p) => !solo || p.avisos > 0 || p.n === actual);
+}
+function pintarLista() {
+  const conAvisos = libro.paginas.filter((p) => p.avisos > 0);
+  const pendientes = conAvisos.filter((p) => !p.revisada);
+  $("#resumen").textContent = `${conAvisos.reduce((a, p) => a + p.avisos, 0)} avisos en ${conAvisos.length} páginas · ${pendientes.length} sin revisar`;
+  const nav = $("#paginas");
+  nav.replaceChildren(...visibles().map((p) => {
+    const b = document.createElement("button");
+    b.dataset.n = p.n;
+    b.setAttribute("aria-current", p.n === actual);
+    if (!p.traducida) b.classList.add("sin");
+    const marca = p.revisada ? `<span class="marca lista" title="Revisada">✓</span>`
+      : p.avisos ? `<span class="marca avisos" title="${p.tipos.map((t) => NOMBRES[t] || t).join(", ")}">${p.avisos}</span>` : "";
+    b.innerHTML = `<span class="num">${p.n}</span>${marca}`;
+    b.onclick = () => abrir(p.n);
+    return b;
+  }));
+  if (actual == null) {
+    const primera = pendientes[0] || conAvisos[0] || libro.paginas.find((p) => p.traducida);
+    if (primera) abrir(primera.n);
+  }
+}
+
+async function abrir(n) {
+  if (Object.keys(cambios).length && !confirm("Hay cambios sin guardar en esta página. ¿Descartarlos?")) return;
+  actual = n; cambios = {}; activo = null;
+  estado("");
+  pagina = await api(`/api/pagina/${n}`);
+  pintarPagina();
+  pintarLista();
+  document.querySelector(`#paginas [data-n="${n}"]`)?.scrollIntoView({ block: "nearest" });
+}
+
+function pintarPagina() {
+  const ar = `${pagina.ancho} / ${pagina.alto}`;
+  for (const [id, src, alt] of [["#lienzo-orig", `/img/orig/${pagina.n}`, "Página original"],
+                                 ["#lienzo-es", `/img/es/${pagina.n}?v=${version}`, "Página traducida"]]) {
+    const l = $(id);
+    l.style.setProperty("--ar", ar);
+    l.style.setProperty("--r", pagina.ancho / pagina.alto);
+    let im = l.querySelector("img");
+    if (!im) { im = new Image(); l.prepend(im); }
+    im.alt = alt; im.src = src;
+  }
+  $("#revisada").checked = pagina.revisada;
+  for (const id of ["#lienzo-orig", "#lienzo-es"]) {
+    const l = $(id);
+    l.querySelectorAll(".caja").forEach((c) => c.remove());
+    for (const bl of pagina.bloques) {
+      const [x, y, w, h] = bl.box;
+      const c = document.createElement("button");
+      c.className = "caja" + (bl.avisos.length && !bl.omitir ? " aviso" : "") + (bl.omitir ? " omitida" : "");
+      Object.assign(c.style, { left: `${x / pagina.ancho * 100}%`, top: `${y / pagina.alto * 100}%`, width: `${w / pagina.ancho * 100}%`, height: `${h / pagina.alto * 100}%` });
+      c.setAttribute("aria-label", `Bloque ${bl.id}`);
+      c.setAttribute("aria-pressed", bl.id === activo);
+      c.innerHTML = id === "#lienzo-orig" ? `<span>${bl.id}</span>` : "";
+      c.onclick = () => enfocar(bl.id, true);
+      l.appendChild(c);
+    }
+  }
+  const cont = $("#bloques");
+  if (!pagina.bloques.length) {
+    cont.innerHTML = `<p class="vacio">Esta página no tiene texto traducido.</p>`;
+    return;
+  }
+  const orden = [...pagina.bloques].sort((a, b) => (b.avisos.length > 0) - (a.avisos.length > 0) || a.id - b.id);
+  cont.replaceChildren(...orden.map(tarjeta));
+}
+
+function tarjeta(bl) {
+  const d = document.createElement("div");
+  d.className = "bloque"; d.id = `b${bl.id}`;
+  const etiquetas = bl.avisos.map((a) => `<span class="etiqueta fuerte">${NOMBRES[a] || a}${a === "chico" && bl.ratio ? " " + Math.round(bl.ratio * 100) + " %" : ""}</span>`).join("");
+  d.innerHTML = `
+    <div class="titulo"><strong>#${bl.id}</strong>${etiquetas}</div>
+    <p class="ingles"></p>
+    <textarea aria-label="Texto en español del bloque ${bl.id}"></textarea>
+    <div class="controles">
+      <span>Estilo</span>
+      <select aria-label="Estilo">${ESTILOS.map(([v, t]) => `<option value="${v}">${t}</option>`).join("")}</select>
+      <span>Tamaño</span>
+      <div class="escala"><input type="range" min="0.6" max="1.6" step="0.05" aria-label="Escala de la letra"><output></output></div>
+      <span></span>
+      <label class="interruptor"><input type="checkbox" class="omitir"> Dejar como en el original</label>
+    </div>`;
+  d.querySelector(".ingles").textContent = bl.en;
+  const ta = d.querySelector("textarea"), sel = d.querySelector("select"), rng = d.querySelector("input[type=range]"),
+    out = d.querySelector("output"), om = d.querySelector(".omitir");
+  ta.value = bl.es; sel.value = bl.estilo; rng.value = bl.escala; om.checked = bl.omitir;
+  ta.disabled = om.checked;
+  const fmt = () => (out.value = Math.round(rng.value * 100) + " %");
+  fmt();
+  const marcar = (campo, valor) => {
+    cambios[bl.id] = { ...(cambios[bl.id] || {}), [campo]: valor };
+    d.classList.add("cambiado");
+  };
+  ta.oninput = () => marcar("es", ta.value);
+  sel.onchange = () => marcar("estilo", sel.value);
+  rng.oninput = () => { fmt(); marcar("escala", Number(rng.value)); };
+  om.onchange = () => { ta.disabled = om.checked; marcar("omitir", om.checked); };
+  d.querySelector(".titulo").onclick = () => enfocar(bl.id, false);
+  d.addEventListener("focusin", () => enfocar(bl.id, false));
+  return d;
+}
+
+function enfocar(id, desplazar) {
+  activo = id;
+  document.querySelectorAll(".caja").forEach((c) => c.setAttribute("aria-pressed", c.getAttribute("aria-label") === `Bloque ${id}`));
+  document.querySelectorAll(".bloque").forEach((b) => b.classList.toggle("activo", b.id === `b${id}`));
+  if (desplazar) { const b = $(`#b${id}`); b?.scrollIntoView({ block: "nearest", behavior: "smooth" }); b?.querySelector("textarea")?.focus({ preventScroll: true }); }
+}
+
+async function guardar() {
+  if (!pagina) return;
+  const btn = $("#guardar");
+  btn.disabled = true; btn.textContent = "Recomponiendo…";
+  document.body.classList.add("ocupado");
+  estado("");
+  try {
+    pagina = await api(`/api/pagina/${pagina.n}`, { bloques: cambios, revisada: $("#revisada").checked });
+    cambios = {}; version = Date.now();
+    const p = libro.paginas.find((x) => x.n === pagina.n);
+    p.revisada = pagina.revisada;
+    p.avisos = pagina.bloques.reduce((a, b) => a + b.avisos.length, 0);
+    pintarPagina(); pintarLista();
+    estado("Página recompuesta.");
+  } catch (e) {
+    estado("No se pudo recomponer: " + e.message, true);
+  } finally {
+    btn.disabled = false; btn.textContent = "Guardar y recomponer";
+    document.body.classList.remove("ocupado");
+  }
+}
+
+function mover(paso) {
+  const lista = visibles();
+  const i = lista.findIndex((p) => p.n === actual);
+  const sig = lista[i + paso];
+  if (sig) abrir(sig.n);
+}
+
+$("#guardar").onclick = guardar;
+$("#revisada").onchange = () => { cambios = { ...cambios }; };
+$("#solo-avisos").onchange = pintarLista;
+$("#armar").onclick = async () => {
+  const b = $("#armar"); b.disabled = true; b.textContent = "Armando…";
+  try { await api("/api/empaquetar", {}); estado("EPUB armado en la carpeta salida."); }
+  catch (e) { estado("No se pudo armar el EPUB: " + e.message, true); }
+  finally { b.disabled = false; b.textContent = "Armar EPUB"; }
+};
+document.addEventListener("keydown", (e) => {
+  if (e.ctrlKey && e.key === "Enter") { e.preventDefault(); guardar(); }
+  if (e.altKey && e.key === "ArrowDown") { e.preventDefault(); mover(1); }
+  if (e.altKey && e.key === "ArrowUp") { e.preventDefault(); mover(-1); }
+});
+window.addEventListener("beforeunload", (e) => { if (Object.keys(cambios).length) e.preventDefault(); });
+cargarLibro().catch((e) => estado("No se pudo cargar el libro: " + e.message, true));
+</script>
+</body>
+</html>

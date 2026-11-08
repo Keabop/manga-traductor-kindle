@@ -1,0 +1,26 @@
+# entorno y caché
+.venv/
+__pycache__/
+*.pyc
+
+# se descargan con instalar.py
+models/
+fonts/
+tools/kcc/
+
+# material con derechos de autor y resultados: nunca al repositorio
+*.epub
+*.mobi
+*.azw3
+*.cbz
+books/
+salida/
+pruebas/
+samples/
+tmp_crops/
+
+# código anterior (pipeline con Tesseract), solo local
+legado/
+
+# caché de la herramienta de diseño
+.impeccable/

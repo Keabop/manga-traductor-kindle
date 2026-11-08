@@ -1,0 +1,5 @@
+# onnxruntime (o onnxruntime-gpu) lo instala instalar.py según haya o no GPU NVIDIA
+numpy>=2.0
+opencv-python-headless>=4.10
+pillow>=11.0
+fonttools>=4.50
