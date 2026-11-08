@@ -32,8 +32,8 @@ aproximadamente la mitad, con traducciones algo menos finas.
 ## Instalación
 
 ```
-git clone https://github.com/Keabop/<repo>.git
-cd <repo>
+git clone https://github.com/Keabop/manga-traductor-kindle.git
+cd manga-traductor-kindle
 python instalar.py
 ```
 
@@ -119,6 +119,10 @@ Para cómics occidentales (izquierda a derecha) agrega `--occidental`.
 | Revisión | `revisar.py`, `revision/` | Servidor local para corregir bloques. |
 | Kindle | `traducir.py kindle` | Kindle Comic Converter. |
 | Diagnóstico | `medir.py`, `comparar.py`, `ver_regiones.py` | Tamaño contra el original, comparativas y zonas de escritura. |
+
+## Licencia
+
+El código de este repositorio es MIT (ver `LICENSE`). Lo de terceros conserva su licencia.
 
 ## Créditos y licencias de terceros
 
