@@ -202,13 +202,41 @@ def _pedir_a_claude(rutas, paginas, modelo, glosario, previo, url=None):
     try:
         sobre = json.loads(r.stdout)
     except json.JSONDecodeError:
-        raise RuntimeError(r.stderr[-800:] or r.stdout[-800:])
+        crudo = (r.stderr or "") + (r.stdout or "")
+        if RE_CUOTA.search(crudo):
+            raise CuotaAgotada(crudo[-500:])
+        raise RuntimeError(crudo[-800:])
     texto = sobre.get("result", "")
     if sobre.get("is_error"):
-        if sobre.get("api_error_status") in (401, 403):
+        estado = sobre.get("api_error_status")
+        if estado in (401, 403):
             raise PermissionError(texto)      # problema de cuenta: no tiene caso reintentar
+        if estado == 429 or RE_CUOTA.search(texto or ""):
+            raise CuotaAgotada(texto)
         raise RuntimeError(texto[:500])
     return _extraer_json(texto), sobre.get("total_cost_usd")
+
+
+class CuotaAgotada(Exception):
+    """Se acabó el límite de uso de la suscripción: hay que esperar a que se renueve."""
+
+
+RE_CUOTA = re.compile(r"usage limit|limit reached|hit your .*limit|rate.?limit|resets? (at|in)|out of (extra )?usage",
+                      re.I)
+
+
+def esperar_cuota(texto, sondeo=20 * 60):
+    """Duerme hasta que se renueve la cuota. Si el mensaje trae la hora de renovación (marca
+    Unix), espera hasta ella (+2 min); si no, vuelve a intentar cada `sondeo` segundos."""
+    m = re.search(r"\b(1[7-9]\d{8})\b", texto or "")
+    ahora = time.time()
+    if m and ahora < int(m.group(1)) < ahora + 8 * 3600:
+        espera = int(m.group(1)) - ahora + 120
+    else:
+        espera = sondeo
+    hasta = time.strftime("%H:%M", time.localtime(ahora + espera))
+    print(f"  cuota agotada ({(texto or '').strip()[:120]!r}); reintento a las {hasta}", flush=True)
+    time.sleep(espera)
 
 
 def _pedir_openai(rutas, paginas, modelo, glosario, previo, url):
@@ -274,16 +302,23 @@ def cmd_traducir(epub, sel=None, lote=8, modelo="opus", forzar=False, carpeta="t
         grupo = pend[i:i + lote]
         rutas = [os.path.join(w, "etiquetas", f"p{n:04d}.jpg") for n in grupo]
         t0 = time.time()
-        for intento in range(3):
+        intento = 0
+        while True:
             try:
                 res, costo = pedir(rutas, grupo, modelo, glosario, previo, url)
                 break
             except PermissionError as e:
                 sys.exit(f"El motor «{motor}» rechazó la cuenta o la clave: {e}")
+            except CuotaAgotada as e:
+                esperar_cuota(str(e))      # no cuenta como intento: se espera lo que haga falta
+                t0 = time.time()
             except Exception as e:
-                print(f"  lote {grupo[0]}-{grupo[-1]} intento {intento + 1} falló: {e}", flush=True)
+                intento += 1
+                print(f"  lote {grupo[0]}-{grupo[-1]} intento {intento} falló: {e}", flush=True)
+                if intento >= 3:
+                    break
                 time.sleep(10)
-        else:
+        if intento >= 3:
             continue
         for n in grupo:
             datos = res.get(str(n)) or {}
