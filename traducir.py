@@ -177,11 +177,23 @@ Incluye TODOS los ids de cada página, también los vacíos.
 """
 
 
-def _pedir_a_claude(rutas, paginas, modelo, glosario, previo):
+def _extraer_json(texto):
+    """El objeto JSON de la respuesta (tolera texto o bloques ``` alrededor)."""
+    m = re.search(r"\{.*\}", texto or "", re.S)
+    if not m:
+        raise RuntimeError("sin JSON en la respuesta: " + (texto or "")[:300])
+    return json.loads(m.group(0))
+
+
+def _prompt(glosario, previo):
+    return (INSTRUCCIONES + "\n## Glosario\n" + glosario +
+            ("\n## Últimas líneas de la página anterior (contexto)\n" + previo if previo else ""))
+
+
+def _pedir_a_claude(rutas, paginas, modelo, glosario, previo, url=None):
+    """Motor por defecto: Claude Code (`claude -p`), que lee las imágenes con su herramienta Read."""
     lista = "\n".join(f"- página {n}: {r}" for n, r in zip(paginas, rutas))
-    prompt = (INSTRUCCIONES + "\n## Glosario\n" + glosario +
-              ("\n## Últimas líneas de la página anterior (contexto)\n" + previo if previo else "") +
-              "\n## Páginas de este lote (léelas con la herramienta Read, en orden)\n" + lista)
+    prompt = _prompt(glosario, previo) + "\n## Páginas de este lote (léelas con la herramienta Read, en orden)\n" + lista
     cmd = ["claude", "-p", "--model", modelo, "--output-format", "json",
            "--allowedTools", "Read", "--no-session-persistence",
            "--add-dir", os.path.dirname(rutas[0])]
@@ -196,13 +208,51 @@ def _pedir_a_claude(rutas, paginas, modelo, glosario, previo):
         if sobre.get("api_error_status") in (401, 403):
             raise PermissionError(texto)      # problema de cuenta: no tiene caso reintentar
         raise RuntimeError(texto[:500])
-    m = re.search(r"\{.*\}", texto, re.S)
-    if not m:
-        raise RuntimeError("sin JSON en la respuesta: " + texto[:300])
-    return json.loads(m.group(0)), sobre.get("total_cost_usd")
+    return _extraer_json(texto), sobre.get("total_cost_usd")
 
 
-def cmd_traducir(epub, sel=None, lote=8, modelo="opus", forzar=False, carpeta="traduccion", glosario_ruta=None):
+def _pedir_openai(rutas, paginas, modelo, glosario, previo, url):
+    """Motor alternativo (EXPERIMENTAL, sin probar con modelos reales): cualquier servidor con
+    la API de chat de OpenAI y soporte de imágenes. Sirve para modelos locales (Ollama,
+    LM Studio, llama.cpp) y para servicios en la nube compatibles. La clave, si hace falta,
+    se toma de la variable de entorno OPENAI_API_KEY."""
+    import base64
+    import urllib.error
+    import urllib.request
+    contenido = [{"type": "text", "text": _prompt(glosario, previo) +
+                  "\n## Páginas de este lote (en orden; cada imagen va precedida de su número)"}]
+    for n, r in zip(paginas, rutas):
+        b64 = base64.b64encode(open(r, "rb").read()).decode("ascii")
+        contenido.append({"type": "text", "text": f"Página {n}:"})
+        contenido.append({"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}})
+    cuerpo = json.dumps({"model": modelo, "temperature": 0.2,
+                         "messages": [{"role": "user", "content": contenido}]}).encode("utf-8")
+    cab = {"Content-Type": "application/json"}
+    if os.environ.get("OPENAI_API_KEY"):
+        cab["Authorization"] = "Bearer " + os.environ["OPENAI_API_KEY"]
+    req = urllib.request.Request(url.rstrip("/") + "/chat/completions", data=cuerpo, headers=cab)
+    try:
+        with urllib.request.urlopen(req, timeout=1800) as resp:
+            datos = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        detalle = e.read().decode("utf-8", "ignore")[:500]
+        if e.code in (401, 403):
+            raise PermissionError(detalle)
+        raise RuntimeError(f"HTTP {e.code}: {detalle}")
+    except urllib.error.URLError as e:
+        raise RuntimeError(f"no se pudo conectar a {url}: {e.reason}")
+    texto = datos["choices"][0]["message"]["content"]
+    if isinstance(texto, list):                 # algunos servidores devuelven partes
+        texto = "".join(p.get("text", "") for p in texto if isinstance(p, dict))
+    return _extraer_json(texto), None
+
+
+MOTORES = {"claude": _pedir_a_claude, "openai": _pedir_openai}
+
+
+def cmd_traducir(epub, sel=None, lote=8, modelo="opus", forzar=False, carpeta="traduccion", glosario_ruta=None,
+                 motor="claude", url=None):
+    pedir = MOTORES[motor]
     _, pags = paginas_del_libro(epub)
     w = dir_libro(epub)
     dtr = os.path.join(w, carpeta)
@@ -226,10 +276,10 @@ def cmd_traducir(epub, sel=None, lote=8, modelo="opus", forzar=False, carpeta="t
         t0 = time.time()
         for intento in range(3):
             try:
-                res, costo = _pedir_a_claude(rutas, grupo, modelo, glosario, previo)
+                res, costo = pedir(rutas, grupo, modelo, glosario, previo, url)
                 break
             except PermissionError as e:
-                sys.exit(f"Claude Code no puede usar la cuenta: {e}")
+                sys.exit(f"El motor «{motor}» rechazó la cuenta o la clave: {e}")
             except Exception as e:
                 print(f"  lote {grupo[0]}-{grupo[-1]} intento {intento + 1} falló: {e}", flush=True)
                 time.sleep(10)
@@ -458,7 +508,15 @@ if __name__ == "__main__":
     ap.add_argument("--glosario", help="glosario de la obra (p. ej. glosarios/my-dress-up-darling.md)")
     ap.add_argument("--paginas")
     ap.add_argument("--lote", type=int, default=12)
-    ap.add_argument("--modelo", default="opus")
+    ap.add_argument("--modelo", default="opus",
+                    help="con --motor claude: opus (recomendado), sonnet o haiku; con --motor openai: el "
+                         "nombre del modelo en el servidor (p. ej. qwen2.5vl:7b)")
+    ap.add_argument("--motor", choices=sorted(MOTORES), default="claude",
+                    help="claude: Claude Code (recomendado). openai: servidor compatible con la API de OpenAI "
+                         "(Ollama, LM Studio...), experimental")
+    ap.add_argument("--url", default="http://localhost:11434/v1",
+                    help="con --motor openai: dirección del servidor (Ollama: http://localhost:11434/v1, "
+                         "LM Studio: http://localhost:1234/v1)")
     ap.add_argument("--forzar", action="store_true")
     ap.add_argument("--carpeta", default="traduccion",
                     help="carpeta de traducciones (p. ej. para comparar modelos)")
@@ -473,7 +531,7 @@ if __name__ == "__main__":
     if a.paso in ("analizar", "todo"):
         cmd_analizar(a.epub, a.paginas, a.forzar)
     if a.paso in ("traducir", "todo"):
-        cmd_traducir(a.epub, a.paginas, a.lote, a.modelo, a.forzar, a.carpeta, a.glosario)
+        cmd_traducir(a.epub, a.paginas, a.lote, a.modelo, a.forzar, a.carpeta, a.glosario, a.motor, a.url)
     if a.paso in ("componer", "todo"):
         cmd_componer(a.epub, a.paginas, a.carpeta)
     if a.paso == "empaquetar" or (a.paso == "todo" and not a.paginas):

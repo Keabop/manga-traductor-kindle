@@ -21,7 +21,7 @@ borrados y vueltos a rotular, listo para leer en una Kindle.
 |---|---|
 | Windows 10/11 | macOS y Linux funcionan para traducir; la conversión a Kindle necesita instalar KCC aparte. |
 | [Python 3.11 o más reciente](https://www.python.org/downloads/) | Marca «Add python.exe to PATH» al instalarlo. |
-| [Claude Code](https://claude.com/claude-code) con sesión iniciada | Hace la traducción. Usa tu suscripción de Claude (Pro o Max). |
+| [Claude Code](https://claude.com/claude-code) con sesión iniciada | Hace la traducción. Usa tu suscripción de Claude (Pro o Max). Hay una alternativa experimental con otros modelos (ver «Qué modelo usar»). |
 | Kindle Previewer 3 (opcional) | Solo para pasar el libro **por cable USB**. [Descarga oficial de Amazon](https://www.amazon.com/Kindle-Previewer/b?node=21381691011). |
 | GPU NVIDIA (opcional) | Con ella el análisis tarda ~0.4 s por página; sin ella, unos segundos. |
 
@@ -68,6 +68,53 @@ sesión con `/login`.
    ```
 
    Si se interrumpe, vuelve a lanzar el mismo comando: continúa donde se quedó.
+
+## Qué modelo usar para traducir
+
+**Recomendado: Claude Opus** (es el valor por defecto). Se comparó con Claude Sonnet sobre
+las mismas 12 páginas, y Opus fue claramente mejor:
+
+- respeta mejor el orden de lectura dentro de un globo (Sonnet llegó a invertir una frase y
+  convirtió un jadeo «HAH!!» en una risa «¡JA!»);
+- suena más natural y menos literal («¿TE LO ARREGLO?», «Me alargas la vida~»);
+- cuida mejor el género gramatical y el tono de cada personaje.
+
+Sonnet funciona y gasta más o menos la mitad, pero hay que revisar más. Otros modelos **no
+se han probado**.
+
+| Modelo | Comando | Estado |
+|---|---|---|
+| Claude Opus | (por defecto) | Recomendado, probado en un tomo completo |
+| Claude Sonnet | `--modelo sonnet` | Probado en 12 páginas; más barato, menos fino |
+| Claude Haiku | `--modelo haiku` | Sin probar |
+| Otros (local o en la nube) | `--motor openai ...` | Experimental, sin probar |
+
+### Con otros modelos o un modelo local (experimental)
+
+`--motor openai` manda las páginas a cualquier servidor compatible con la API de chat de
+OpenAI: **Ollama**, **LM Studio**, **llama.cpp** o servicios en la nube que la imiten.
+Requisitos del modelo:
+
+- **Debe tener visión** (leer imágenes): lee el inglés directamente de la página. Un modelo
+  solo de texto no sirve.
+- Debe poder devolver JSON siguiendo instrucciones largas.
+
+Ejemplo con Ollama y un modelo de visión (cabe en una GPU de 12-16 GB):
+
+```
+ollama pull qwen2.5vl:7b
+.venv\Scripts\python traducir.py traducir "C:\ruta\tomo.epub" --glosario glosarios\mi-manga.md --motor openai --modelo qwen2.5vl:7b --lote 1 --paginas 5-16
+```
+
+- Con LM Studio usa `--url http://localhost:1234/v1` y el nombre del modelo cargado.
+- Si el servicio pide clave, ponla en la variable de entorno `OPENAI_API_KEY`.
+- Usa `--lote 1` o `--lote 2`: los modelos pequeños se pierden con muchas páginas a la vez.
+- Para comparar contra Claude sin pisar lo ya traducido, agrega `--carpeta traduccion_local`
+  y compón con `componer ... --carpeta traduccion_local` (sale en `books\<tomo>\es_traduccion_local\`).
+
+Un modelo local de 7-12 B traducirá peor que Opus y se equivocará más con el orden de los
+globos, el género y qué es onomatopeya; a cambio, es gratis y funciona sin internet. Prueba
+siempre con unas cuantas páginas antes de lanzar un tomo.
 
 ## Revisar y corregir
 
