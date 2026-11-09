@@ -146,7 +146,8 @@ volver a traducir. Al terminar, «Armar EPUB» y luego el paso de Kindle.
 
 El archivo queda en `salida\kindle\`.
 
-- **Por cable USB (recomendado):** genera un `.mobi` (necesita `kindlegen`, que
+- Se generan **las dos versiones** a la vez: `.mobi` y `.epub` (más el EPUB a resolución completa en `salida`).
+- **Por cable USB (recomendado):** usa el `.mobi` (necesita `kindlegen`, que
   `instalar.py` deja en `tools\kindlegen\` si tienes 7-Zip, o Kindle Previewer instalado;
   se detecta solo). Conecta la Kindle y copia el archivo a la carpeta `documents`.
 - **Por Send to Kindle:** usa `--formato epub` y súbelo desde la app o

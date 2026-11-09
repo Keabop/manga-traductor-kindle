@@ -480,17 +480,21 @@ def buscar_kindlegen():
     return None
 
 
-def cmd_kindle(epub, perfil="KPW6", occidental=False, kcc=None, formato="mobi"):
+def cmd_kindle(epub, perfil="KPW6", occidental=False, kcc=None, formato="ambos"):
     """Versión para Kindle con Kindle Comic Converter (KCC): páginas ajustadas a la pantalla
     del modelo y lectura de derecha a izquierda.
 
-    formato «mobi»: para copiar por cable USB a la carpeta documents (necesita kindlegen, que
-    viene con Kindle Previewer 3). formato «epub»: para la app o la web de Send to Kindle."""
+    formato «mobi»: para copiar por cable USB a la carpeta documents (necesita kindlegen).
+    formato «epub»: para la app o la web de Send to Kindle.
+    formato «ambos» (por defecto): los dos en una pasada; sin kindlegen, solo EPUB."""
+    if formato == "ambos" and not buscar_kindlegen():
+        print("  (sin kindlegen: solo se genera el EPUB)")
+        formato = "epub"
     kcc = kcc or KCC
     if not os.path.exists(kcc):
         sys.exit("No encuentro KCC. Ejecuta primero:  python instalar.py")
     entorno = dict(os.environ)
-    if formato == "mobi":
+    if formato in ("mobi", "ambos"):
         kg = buscar_kindlegen()
         if not kg:
             sys.exit("Para MOBI (USB) falta kindlegen: instala Kindle Previewer 3 de Amazon\n"
@@ -516,10 +520,11 @@ def cmd_kindle(epub, perfil="KPW6", occidental=False, kcc=None, formato="mobi"):
     dsal = os.path.join(AQUI, "salida", "kindle")
     os.makedirs(dsal, exist_ok=True)
     t0 = time.time()
-    cmd = [kcc, "-p", perfil, "-f", "MOBI" if formato == "mobi" else "EPUB", "-u",
-           "-t", titulo, "-o", dsal, "--language", "es"]
-    if formato == "epub":
-        cmd += ["--nokepub", "--ts", "190"]
+    kcc_formato = {"mobi": "MOBI", "epub": "EPUB", "ambos": "MOBI+EPUB"}[formato]
+    cmd = [kcc, "-p", perfil, "-f", kcc_formato, "-u", "-t", titulo, "-o", dsal, "--language", "es",
+           "--ts", "190"]
+    if formato != "mobi":
+        cmd.append("--nokepub")
     if autor and autor.lower() != "unknown":
         cmd += ["-a", autor]
     if not occidental:
@@ -568,8 +573,8 @@ if __name__ == "__main__":
                          "K11 = Kindle básico 11.ª/2024; KS = Scribe")
     ap.add_argument("--occidental", action="store_true", help="lectura de izquierda a derecha (cómic, no manga)")
     ap.add_argument("--kcc", help="ruta a kcc-c2e si no es la que descarga instalar.py (macOS/Linux)")
-    ap.add_argument("--formato", choices=["mobi", "epub"], default="mobi",
-                    help="mobi: copiar por USB (necesita Kindle Previewer 3); epub: Send to Kindle (app/web)")
+    ap.add_argument("--formato", choices=["ambos", "mobi", "epub"], default="ambos",
+                    help="ambos (por defecto): MOBI para USB y EPUB para Send to Kindle; mobi necesita kindlegen")
     a = ap.parse_args()
     if a.paso in ("analizar", "todo"):
         cmd_analizar(a.epub, a.paginas, a.forzar)

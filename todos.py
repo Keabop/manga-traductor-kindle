@@ -77,9 +77,8 @@ def procesar(epub, glosario, perfil, modelo):
         print(f"  AVISO: {faltan} páginas quedaron sin traducir (se dejan en inglés)")
     traducir.cmd_componer(epub)
     traducir.cmd_empaquetar(epub)
-    formato = "mobi" if traducir.buscar_kindlegen() else "epub"
     try:
-        traducir.cmd_kindle(epub, perfil, formato=formato)
+        traducir.cmd_kindle(epub, perfil, formato="ambos")
     except SystemExit as e:
         print(f"  AVISO: la conversión a Kindle falló: {e}")
     print(f"  tomo listo en {(time.time() - t0) / 60:.0f} min")
