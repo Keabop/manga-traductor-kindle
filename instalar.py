@@ -90,6 +90,41 @@ def bajar(url, destino, sha256=None):
     os.replace(tmp, destino)
 
 
+def kindlegen():
+    """kindlegen (para MOBI por USB) sin instalar Kindle Previewer ni pedir administrador:
+    se descarga el instalador oficial con winget (que verifica su SHA-256) y se extrae solo
+    la carpeta de kindlegen con 7-Zip. Si falta winget o 7-Zip, se explica la alternativa."""
+    destino = os.path.join(AQUI, "tools", "kindlegen")
+    if os.path.exists(os.path.join(destino, "kindlegen.exe")):
+        print("  ya existe tools\\kindlegen\\kindlegen.exe")
+        return
+    siete = shutil.which("7z") or next((p for p in (r"C:\Program Files\7-Zip\7z.exe",
+                                                    r"C:\Program Files (x86)\7-Zip\7z.exe") if os.path.exists(p)), None)
+    if not (shutil.which("winget") and siete):
+        print("  Para pasar libros por USB (MOBI) hace falta kindlegen. Opciones:\n"
+              "   - instala 7-Zip (https://www.7-zip.org) y vuelve a ejecutar instalar.py, o\n"
+              "   - instala Kindle Previewer de Amazon, o\n"
+              "   - usa --formato epub y Send to Kindle.")
+        return
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmp:
+        print("  bajando el instalador oficial de Kindle Previewer (~470 MB) para extraer kindlegen...")
+        r = subprocess.run(["winget", "download", "--id", "Amazon.KindlePreviewer", "-e", "-d", tmp,
+                            "--accept-package-agreements", "--accept-source-agreements", "--disable-interactivity"],
+                           capture_output=True, text=True)
+        exe = next((os.path.join(tmp, f) for f in os.listdir(tmp) if f.lower().endswith(".exe")), None)
+        if r.returncode != 0 or not exe:
+            print("  no se pudo descargar con winget; usa --formato epub o instala Kindle Previewer")
+            return
+        subprocess.run([siete, "e", "-tNsis", exe, r"$PLUGINSDIR\KindlePreviewerApp.msix", "-o" + tmp, "-y"],
+                       capture_output=True, check=True)
+        subprocess.run([siete, "e", os.path.join(tmp, "KindlePreviewerApp.msix"),
+                        r"KindlePreviewerApp\resources\KFXGen\bin\*", "-o" + destino, "-y"],
+                       capture_output=True, check=True)
+    print("  kindlegen listo en tools\\kindlegen\\" if os.path.exists(os.path.join(destino, "kindlegen.exe"))
+          else "  no se encontró kindlegen dentro del instalador")
+
+
 def main():
     if sys.version_info < (3, 11):
         sys.exit("Se necesita Python 3.11 o más reciente.")
@@ -117,6 +152,7 @@ def main():
     paso("Kindle Comic Converter")
     if os.name == "nt":
         bajar(KCC_URL, KCC_EXE, KCC_SHA256)
+        kindlegen()
     else:
         print("  En macOS/Linux instala KCC desde https://github.com/ciromattia/kcc/releases y pasa su"
               " ruta a traducir.py con --kcc (paso «kindle»).")

@@ -467,7 +467,7 @@ def buscar_kindlegen():
     exe = "kindlegen.exe" if os.name == "nt" else "kindlegen"
     if shutil.which("kindlegen"):
         return os.path.dirname(shutil.which("kindlegen"))
-    candidatos = [r"C:\Tools\kindlegen.exe"]
+    candidatos = [os.path.join(AQUI, "tools", "kindlegen", exe), r"C:\Tools\kindlegen.exe"]
     for base in (os.environ.get("LOCALAPPDATA", ""), os.environ.get("ProgramFiles", ""),
                  os.environ.get("ProgramFiles(x86)", "")):
         if base:
@@ -530,6 +530,14 @@ def cmd_kindle(epub, perfil="KPW6", occidental=False, kcc=None, formato="mobi"):
     if r.returncode != 0 or "Error" in (r.stdout or ""):
         sys.exit("KCC falló:\n" + ((r.stderr or "") + (r.stdout or ""))[-1500:])
     shutil.rmtree(os.path.dirname(carpeta))
+    # KCC agrega «_kcc0» si ya existe un archivo con ese nombre (p. ej. el EPUB): se limpia
+    for f in os.listdir(dsal):
+        m = re.match(re.escape(nombre) + r"_kcc\d+(\.\w+)$", f)
+        if m and os.path.getmtime(os.path.join(dsal, f)) >= t0 - 1:
+            limpio = os.path.join(dsal, nombre + m.group(1))
+            if os.path.exists(limpio):
+                os.remove(limpio)
+            os.replace(os.path.join(dsal, f), limpio)
     for f in sorted(os.listdir(dsal)):
         ruta = os.path.join(dsal, f)
         if f.startswith(nombre) and os.path.getmtime(ruta) >= t0 - 1:

@@ -22,7 +22,7 @@ borrados y vueltos a rotular, listo para leer en una Kindle.
 | Windows 10/11 | macOS y Linux funcionan para traducir; la conversión a Kindle necesita instalar KCC aparte. |
 | [Python 3.11 o más reciente](https://www.python.org/downloads/) | Marca «Add python.exe to PATH» al instalarlo. |
 | [Claude Code](https://claude.com/claude-code) con sesión iniciada | Hace la traducción. Usa tu suscripción de Claude (Pro o Max). Hay una alternativa experimental con otros modelos (ver «Qué modelo usar»). |
-| Kindle Previewer 3 (opcional) | Solo para pasar el libro **por cable USB**. [Descarga oficial de Amazon](https://www.amazon.com/Kindle-Previewer/b?node=21381691011). |
+| [7-Zip](https://www.7-zip.org) (opcional) | Para pasar el libro **por cable USB**: `instalar.py` lo usa para sacar `kindlegen` del instalador oficial de Kindle Previewer, sin instalarlo ni pedir permisos de administrador. Alternativa: instalar [Kindle Previewer](https://www.amazon.com/Kindle-Previewer/b?node=21381691011). |
 | GPU NVIDIA (opcional) | Con ella el análisis tarda ~0.4 s por página; sin ella, unos segundos. |
 
 **Costo:** un tomo de ~175 páginas con Opus consume el equivalente a unos US$11 de uso de tu
@@ -146,9 +146,9 @@ volver a traducir. Al terminar, «Armar EPUB» y luego el paso de Kindle.
 
 El archivo queda en `salida\kindle\`.
 
-- **Por cable USB (recomendado):** genera un `.mobi` (necesita Kindle Previewer 3
-  instalado; se detecta solo). Conecta la Kindle y copia el archivo a la carpeta
-  `documents`.
+- **Por cable USB (recomendado):** genera un `.mobi` (necesita `kindlegen`, que
+  `instalar.py` deja en `tools\kindlegen\` si tienes 7-Zip, o Kindle Previewer instalado;
+  se detecta solo). Conecta la Kindle y copia el archivo a la carpeta `documents`.
 - **Por Send to Kindle:** usa `--formato epub` y súbelo desde la app o
   [la web](https://www.amazon.com/sendtokindle) (máx. 200 MB; por correo el límite es 50 MB).
 

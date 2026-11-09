@@ -7,6 +7,7 @@ __pycache__/
 models/
 fonts/
 tools/kcc/
+tools/kindlegen/
 
 # material con derechos de autor y resultados: nunca al repositorio
 *.epub
